@@ -74,38 +74,36 @@ export default async function handler(req, res) {
         await setLastStatus(username, newStatus);
         console.log(`[Check] ${username}: status changed, saved to store`);
 
+        // Kirim notifikasi untuk semua transisi, termasuk first-run discovery
         const isFirstRun = oldStatus === null;
-        if (!isFirstRun) {
-          // Resolve game name if in-game
-          let gameName = null;
-          if (newStatus === 'in_game' && presence.universeId) {
-            gameName = await getGameName(presence.universeId);
-            console.log(`[Check] ${username}: in_game → gameName=${gameName}`);
-          }
 
-          // Send Discord notification
-          console.log(`[Check] ${username}: sending Discord notification...`);
-          webhookSent = await sendStatusNotification(
-            username,
-            oldStatus,
-            newStatus,
-            displayName,
-            userId,
-            gameName
-          );
-          console.log(`[Check] ${username}: Discord webhook sent=${webhookSent}`);
-
-          // Save to history
-          await addHistoryEntry({
-            username,
-            displayName,
-            old_status:   oldStatus,
-            new_status:   newStatus,
-            webhook_sent: webhookSent
-          });
-        } else {
-          console.log(`[Check] ${username}: first-run discovery → ${newStatus} (no notification)`);
+        // Resolve game name if in-game
+        let gameName = null;
+        if (newStatus === 'in_game' && presence.universeId) {
+          gameName = await getGameName(presence.universeId);
+          console.log(`[Check] ${username}: in_game → gameName=${gameName}`);
         }
+
+        // Send Discord notification
+        console.log(`[Check] ${username}: sending Discord notification (isFirstRun=${isFirstRun})...`);
+        webhookSent = await sendStatusNotification(
+          username,
+          oldStatus,
+          newStatus,
+          displayName,
+          userId,
+          gameName
+        );
+        console.log(`[Check] ${username}: Discord webhook sent=${webhookSent}`);
+
+        // Save to history
+        await addHistoryEntry({
+          username,
+          displayName,
+          old_status:   oldStatus,
+          new_status:   newStatus,
+          webhook_sent: webhookSent
+        });
       } else {
         console.log(`[Check] ${username}: no change (${newStatus})`);
       }

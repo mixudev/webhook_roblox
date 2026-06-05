@@ -70,7 +70,7 @@ export async function sendStatusNotification(username, oldStatus, newStatus, dis
   const oldIndicator  = oldStatus ? STATUS_INDICATOR[oldStatus] ?? '⚫' : '—';
 
   // Susun deskripsi singkat
-  const fromStr = oldStatus ? `${oldIndicator} ${oldLabel}` : '—';
+  const fromStr = oldStatus ? `${oldIndicator} ${oldLabel}` : '🆕 First detected';
   const toStr   = `${newIndicator} ${newLabel}`;
 
   const fields = [
