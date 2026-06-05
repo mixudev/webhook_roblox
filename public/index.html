@@ -159,12 +159,42 @@
 
     </div>
 
+    <!-- ============================================ -->
+    <!--  PAGE: HEALTH                                -->
+    <!-- ============================================ -->
+    <div id="page-health" class="page-view">
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">System Health</span>
+          <button class="btn btn-ghost btn-sm" id="health-refresh-btn">Refresh</button>
+        </div>
+        <div id="health-overall" style="padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); display:none;">
+          <div id="health-overall-badge" class="health-overall-badge"></div>
+        </div>
+        <div id="health-list">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <p>Loading diagnostics...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Last Activity -->
+      <div class="card" id="health-last-activity-card" style="display:none;">
+        <div class="card-header">
+          <span class="card-title">Last Activity</span>
+        </div>
+        <div id="health-last-activity" style="padding: 1rem; font-size: 0.85rem; color: var(--text-2);"></div>
+      </div>
+
+    </div>
+
   </main>
 
   <!-- ======= BOTTOM NAVIGATION ======= -->
   <nav class="bottom-nav">
     <button class="nav-tab active" data-page="dashboard">
-      <!-- Home icon -->
       <svg viewBox="0 0 24 24">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
         <polyline points="9 22 9 12 15 12 15 22"/>
@@ -172,7 +202,6 @@
       <span class="nav-tab-label">Dashboard</span>
     </button>
     <button class="nav-tab" data-page="settings">
-      <!-- Settings / Gear icon -->
       <svg viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -180,7 +209,6 @@
       <span class="nav-tab-label">Settings</span>
     </button>
     <button class="nav-tab" data-page="logs">
-      <!-- Activity / Logs icon -->
       <svg viewBox="0 0 24 24">
         <line x1="8" y1="6" x2="21" y2="6"/>
         <line x1="8" y1="12" x2="21" y2="12"/>
@@ -190,6 +218,13 @@
         <line x1="3" y1="18" x2="3.01" y2="18"/>
       </svg>
       <span class="nav-tab-label">Logs</span>
+    </button>
+    <button class="nav-tab" data-page="health">
+      <!-- Health / pulse icon -->
+      <svg viewBox="0 0 24 24">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span class="nav-tab-label">Health</span>
     </button>
   </nav>
 

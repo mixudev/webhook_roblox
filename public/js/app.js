@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (page === 'dashboard') fetchStatus();
       else if (page === 'settings') loadSettings();
       else if (page === 'logs') loadLogs();
+      else if (page === 'health') loadHealth();
     });
   });
 
@@ -77,7 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
     checkBtnText.innerHTML = '<div class="spinner"></div>';
 
     try {
-      const res = await fetch('/api/check-roblox');
+      // Use /api/status (no auth) — read cached state for display
+      const res = await fetch('/api/status');
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.message || d.error || `HTTP ${res.status}`);
@@ -373,6 +375,87 @@ document.addEventListener('DOMContentLoaded', () => {
       showError(`Clear failed: ${err.message}`);
     }
   });
+
+  // ============================================
+  // HEALTH - LOAD DIAGNOSTICS
+  // ============================================
+  const healthList = document.getElementById('health-list');
+  const healthOverall = document.getElementById('health-overall');
+  const healthOverallBadge = document.getElementById('health-overall-badge');
+  const healthRefreshBtn = document.getElementById('health-refresh-btn');
+  const healthLastActivityCard = document.getElementById('health-last-activity-card');
+  const healthLastActivity = document.getElementById('health-last-activity');
+
+  const STATUS_CONFIG = {
+    ok:   { icon: '✓', label: 'OK', cls: 'health-ok' },
+    warn: { icon: '!', label: 'Warning', cls: 'health-warn' },
+    error:{ icon: '✕', label: 'Error', cls: 'health-error' },
+    info: { icon: 'i', label: 'Info', cls: 'health-info' }
+  };
+
+  async function loadHealth() {
+    healthList.innerHTML = `<div class="empty-state"><p>Checking...</p></div>`;
+    healthOverall.style.display = 'none';
+    healthLastActivityCard.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/health');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+
+      // Overall status banner
+      const overall = data.overall || 'ok';
+      const oc = STATUS_CONFIG[overall] || STATUS_CONFIG.info;
+      healthOverallBadge.className = `health-overall-badge ${oc.cls}`;
+      healthOverallBadge.textContent = overall === 'ok'
+        ? '✓ Semua sistem berjalan normal'
+        : overall === 'warn'
+          ? '! Ada konfigurasi yang perlu diperhatikan'
+          : '✕ Ada konfigurasi yang belum lengkap';
+      healthOverall.style.display = 'block';
+
+      // Check items
+      healthList.innerHTML = '';
+      (data.checks || []).forEach(check => {
+        const cfg = STATUS_CONFIG[check.status] || STATUS_CONFIG.info;
+        const div = document.createElement('div');
+        div.className = 'health-item';
+        div.innerHTML = `
+          <div class="health-icon ${cfg.cls}">${cfg.icon}</div>
+          <div class="health-info">
+            <div class="health-label">${check.label}</div>
+            <div class="health-msg">${check.message}</div>
+          </div>
+          <div class="health-badge ${cfg.cls}">${cfg.label}</div>
+        `;
+        healthList.appendChild(div);
+      });
+
+      // Last activity
+      if (data.lastActivity) {
+        const la = data.lastActivity;
+        const timeStr = la.timestamp
+          ? new Date(la.timestamp).toLocaleString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '—';
+        healthLastActivity.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span><strong>${la.displayName || la.username}</strong> @${la.username}</span>
+            <span style="color: var(--text-3); font-size: 0.78rem;">${timeStr}</span>
+          </div>
+          <div style="margin-top: 0.4rem; color: var(--text-3); font-size: 0.8rem;">
+            ${la.old_status} → ${la.new_status}
+            ${la.webhook_sent ? '<span style="color:var(--green); margin-left:0.5rem;">✓ Notified</span>' : '<span style="color:var(--red); margin-left:0.5rem;">✕ Not sent</span>'}
+          </div>
+        `;
+        healthLastActivityCard.style.display = 'block';
+      }
+
+    } catch (err) {
+      healthList.innerHTML = `<div class="empty-state"><p>Gagal memuat diagnostik: ${err.message}</p></div>`;
+    }
+  }
+
+  healthRefreshBtn.addEventListener('click', loadHealth);
 
   // ============================================
   // INITIAL LOAD

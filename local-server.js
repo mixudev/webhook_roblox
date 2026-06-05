@@ -7,6 +7,8 @@ import testWebhookHandler from './api/test-webhook.js';
 import manageUsersHandler from './api/manage-users.js';
 import historyHandler from './api/history.js';
 import resetStatusHandler from './api/reset-status.js';
+import statusHandler from './api/status.js';
+import healthHandler from './api/health.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,6 +177,30 @@ const server = http.createServer((req, res) => {
       setupHelpers(res);
       try {
         await resetStatusHandler(req, res);
+      } catch (err) {
+        console.error('API Error:', err);
+        res.status(500).json({ error: 'Internal Server Error', message: err.message });
+      }
+      return;
+    }
+
+    // Route: /api/status
+    if (req.url.startsWith('/api/status')) {
+      setupHelpers(res);
+      try {
+        await statusHandler(req, res);
+      } catch (err) {
+        console.error('API Error:', err);
+        res.status(500).json({ error: 'Internal Server Error', message: err.message });
+      }
+      return;
+    }
+
+    // Route: /api/health
+    if (req.url.startsWith('/api/health')) {
+      setupHelpers(res);
+      try {
+        await healthHandler(req, res);
       } catch (err) {
         console.error('API Error:', err);
         res.status(500).json({ error: 'Internal Server Error', message: err.message });
