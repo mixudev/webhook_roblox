@@ -1,0 +1,19 @@
+{
+  "name": "webhook-roblox",
+  "version": "1.0.0",
+  "description": "Roblox online status monitor with Discord webhook notifications",
+  "type": "module",
+  "scripts": {
+    "dev": "node local-server.js",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^35.0.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
