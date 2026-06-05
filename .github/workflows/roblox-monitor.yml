@@ -1,0 +1,43 @@
+name: Roblox Status Monitor
+
+on:
+  schedule:
+    # Jalankan setiap 5 menit (minimum GitHub Actions)
+    # GitHub kadang delay 1-2 menit, tapi tetap reliable untuk monitoring
+    - cron: '*/5 * * * *'
+
+  # Izinkan trigger manual dari tab Actions di GitHub
+  workflow_dispatch:
+
+jobs:
+  check-status:
+    name: Check Roblox Presence
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Trigger Roblox Status Check
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "⏱ Running status check at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            --max-time 30 \
+            "${APP_URL}/api/check-roblox")
+
+          RESPONSE=$(cat /tmp/response.txt)
+
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Response: $RESPONSE"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Status check completed successfully"
+          else
+            echo "❌ Status check failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi

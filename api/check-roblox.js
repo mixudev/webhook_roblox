@@ -1,4 +1,4 @@
-import { getUsersByUsernames, getUserPresences, mapPresenceTypeToString } from './services/roblox.service.js';
+import { getUsersByUsernames, getUserPresences, getGameName, mapPresenceTypeToString } from './services/roblox.service.js';
 import { getLastStatus, setLastStatus, getMonitoredUsers, addHistoryEntry } from './services/state.service.js';
 import { sendStatusNotification } from './services/discord.service.js';
 
@@ -49,53 +49,70 @@ export default async function handler(req, res) {
 
     // 3. Process each presence update
     for (const presence of presences) {
-      const userId = presence.userId;
+      const userId  = presence.userId;
       const userObj = userIdMap[userId];
       
       if (!userObj) continue;
 
-      const username = userObj.name;
+      const username    = userObj.name;
       const displayName = userObj.displayName;
-      
+
       // Get current status string
       const newStatus = mapPresenceTypeToString(presence.userPresenceType);
-      
+
       // Get last known status from State Service (Vercel KV or Local Fallback)
+      // null means we've never seen this user before (first run)
       const oldStatus = await getLastStatus(username);
-      
+
       let webhookSent = false;
 
       // 4. Compare and update state if changed
       if (newStatus !== oldStatus) {
-        // Save new state
+        // Save new state first
         await setLastStatus(username, newStatus);
-        
-        // Send notification to Discord
-        webhookSent = await sendStatusNotification(
-          username,
-          oldStatus,
-          newStatus,
-          displayName,
-          userId
-        );
 
-        // Add entry to history logs
-        await addHistoryEntry({
-          username: username,
-          displayName: displayName,
-          old_status: oldStatus,
-          new_status: newStatus,
-          webhook_sent: webhookSent
-        });
+        // Skip sending notification on first run (oldStatus === null)
+        // — we only notify on real transitions, not initial state discovery.
+        const isFirstRun = oldStatus === null;
+
+        if (!isFirstRun) {
+          // Resolve game name if user is in-game
+          let gameName = null;
+          if (newStatus === 'in_game' && presence.universeId) {
+            gameName = await getGameName(presence.universeId);
+          }
+
+          // Send notification to Discord
+          webhookSent = await sendStatusNotification(
+            username,
+            oldStatus,
+            newStatus,
+            displayName,
+            userId,
+            gameName
+          );
+
+          // Add entry to history logs
+          await addHistoryEntry({
+            username:     username,
+            displayName:  displayName,
+            old_status:   oldStatus,
+            new_status:   newStatus,
+            webhook_sent: webhookSent
+          });
+        } else {
+          console.log(`[Check] First-run discovery: ${username} → ${newStatus} (no notification)`);
+        }
       }
 
       results.push({
-        username: username,
+        username:    username,
         displayName: displayName,
-        old_status: oldStatus,
-        new_status: newStatus,
+        userId:      userId,
+        old_status:  oldStatus,
+        new_status:  newStatus,
         webhook_sent: webhookSent,
-        timestamp: new Date().toISOString()
+        timestamp:   new Date().toISOString()
       });
     }
 

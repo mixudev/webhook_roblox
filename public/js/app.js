@@ -112,7 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
       userList.innerHTML = '';
       items.forEach(item => {
         const status = item.new_status || 'offline';
-        const isActive = status === 'online' || status === 'in_game';
+        const userId = item.userId || null;
+        const avatarSrc = userId
+          ? `https://www.roblox.com/headshot-thumbnail/image?userId=${userId}&width=150&height=150&format=png`
+          : null;
 
         const div = document.createElement('div');
         div.className = 'user-item';
@@ -120,8 +123,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—';
 
         div.innerHTML = `
-          <div class="status-dot ${status}">
-            <div class="status-dot-inner"></div>
+          <div class="user-avatar-wrap">
+            ${avatarSrc
+              ? `<img class="user-avatar" src="${avatarSrc}" alt="${item.username}" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.user-avatar-fallback').style.display='flex'">
+                 <div class="user-avatar-fallback" style="display:none">${(item.displayName || item.username).charAt(0).toUpperCase()}</div>`
+              : `<div class="user-avatar-fallback">${(item.displayName || item.username).charAt(0).toUpperCase()}</div>`
+            }
+            <div class="user-status-badge ${status}"></div>
           </div>
           <div class="user-info">
             <div class="user-display-name">${item.displayName || item.username}</div>
@@ -172,6 +180,35 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       testWebhookBtn.disabled = false;
       testWebhookText.textContent = 'Send Test Notification';
+    }
+  });
+
+  // ============================================
+  // DASHBOARD - RESET STATUS
+  // ============================================
+  const resetStatusBtn = document.getElementById('reset-status-btn');
+  const resetStatusText = document.getElementById('reset-status-text');
+
+  resetStatusBtn.addEventListener('click', async () => {
+    if (!confirm('Reset status semua user?\n\nStatus tersimpan akan dihapus, sehingga notifikasi akan dikirim ulang pada pengecekan berikutnya.')) return;
+
+    resetStatusBtn.disabled = true;
+    resetStatusText.innerHTML = '<div class="spinner"></div> Resetting...';
+
+    try {
+      const res = await fetch('/api/reset-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      showSuccess(`✓ ${data.message}`);
+    } catch (err) {
+      showError(`Reset failed: ${err.message}`);
+    } finally {
+      resetStatusBtn.disabled = false;
+      resetStatusText.textContent = 'Reset Status';
     }
   });
 

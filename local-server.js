@@ -6,6 +6,7 @@ import checkRobloxHandler from './api/check-roblox.js';
 import testWebhookHandler from './api/test-webhook.js';
 import manageUsersHandler from './api/manage-users.js';
 import historyHandler from './api/history.js';
+import resetStatusHandler from './api/reset-status.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -162,6 +163,18 @@ const server = http.createServer((req, res) => {
       setupHelpers(res);
       try {
         await historyHandler(req, res);
+      } catch (err) {
+        console.error('API Error:', err);
+        res.status(500).json({ error: 'Internal Server Error', message: err.message });
+      }
+      return;
+    }
+
+    // Route: /api/reset-status
+    if (req.url.startsWith('/api/reset-status')) {
+      setupHelpers(res);
+      try {
+        await resetStatusHandler(req, res);
       } catch (err) {
         console.error('API Error:', err);
         res.status(500).json({ error: 'Internal Server Error', message: err.message });

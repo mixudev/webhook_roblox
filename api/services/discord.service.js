@@ -1,86 +1,55 @@
 /**
  * Service untuk mengirim notifikasi ke Discord via Webhook.
- * Format: Rich Embed dengan bahasa Indonesia.
+ * Format: Clean embed profesional, bahasa Indonesia.
  */
 
-// Warna embed berdasarkan status
+// Warna embed berdasarkan status baru
 const STATUS_COLORS = {
-  offline: 0x4a5568,   // Abu-abu gelap
-  online:  0x38a169,   // Hijau
-  in_game: 0x3182ce,   // Biru
-  studio:  0xdd6b20    // Oranye
+  offline: 0x36393f,  // Discord dark grey
+  online:  0x57f287,  // Discord green
+  in_game: 0x5865f2,  // Discord blurple
+  studio:  0xfee75c   // Discord yellow
 };
 
-// Emoji status
-const STATUS_EMOJI = {
-  offline: '⚫',
-  online:  '🟢',
-  in_game: '🎮',
-  studio:  '🛠️'
-};
-
-// Label status dalam bahasa Indonesia
+// Label status
 const STATUS_LABEL = {
   offline: 'Offline',
   online:  'Online',
-  in_game: 'Sedang Bermain',
+  in_game: 'In Game',
   studio:  'Roblox Studio'
 };
 
-// Pesan transisi berdasarkan status baru
-function getTransitionMessage(username, displayName, oldStatus, newStatus) {
-  const name = displayName || username;
-
-  switch (newStatus) {
-    case 'online':
-      return {
-        title: `🟢 ${name} Baru Saja Online`,
-        description: `**${name}** kini **online** di Roblox.\nSebelumnya: ${STATUS_EMOJI[oldStatus]} ${STATUS_LABEL[oldStatus]}`
-      };
-    case 'in_game':
-      return {
-        title: `🎮 ${name} Sedang Main Game`,
-        description: `**${name}** sedang **bermain game** di Roblox.\nSebelumnya: ${STATUS_EMOJI[oldStatus]} ${STATUS_LABEL[oldStatus]}`
-      };
-    case 'studio':
-      return {
-        title: `🛠️ ${name} Membuka Roblox Studio`,
-        description: `**${name}** sedang membuka **Roblox Studio**.\nSebelumnya: ${STATUS_EMOJI[oldStatus]} ${STATUS_LABEL[oldStatus]}`
-      };
-    case 'offline':
-    default:
-      return {
-        title: `⚫ ${name} Offline`,
-        description: `**${name}** telah **offline** dari Roblox.\nSebelumnya: ${STATUS_EMOJI[oldStatus]} ${STATUS_LABEL[oldStatus]}`
-      };
-  }
-}
+// Indikator bullet per status
+const STATUS_INDICATOR = {
+  offline: '⚫',
+  online:  '🟢',
+  in_game: '🔵',
+  studio:  '🟡'
+};
 
 /**
- * Format waktu ke zona WIB (UTC+7) dalam bahasa Indonesia.
+ * Format waktu ke zona WIB (UTC+7).
  */
 function getWIBTimeString() {
   return new Intl.DateTimeFormat('id-ID', {
     timeZone: 'Asia/Jakarta',
-    weekday: 'long',
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false
   }).format(new Date()) + ' WIB';
 }
 
 /**
  * Mengirim notifikasi perubahan status ke Discord.
- * 
- * @param {string} username - Roblox username
- * @param {string} oldStatus - Status sebelumnya
- * @param {string} newStatus - Status terbaru
- * @param {string} displayName - Display name dari profil Roblox
- * @param {number} userId - Roblox User ID
+ *
+ * @param {string} username      - Roblox username
+ * @param {string} oldStatus     - Status sebelumnya (null = belum ada data)
+ * @param {string} newStatus     - Status terbaru
+ * @param {string} displayName   - Display name dari profil Roblox
+ * @param {number} userId        - Roblox User ID
  * @param {string|null} gameName - Nama game (jika sedang bermain)
  * @returns {Promise<boolean>}
  */
@@ -91,62 +60,53 @@ export async function sendStatusNotification(username, oldStatus, newStatus, dis
     return false;
   }
 
-  const { title, description } = getTransitionMessage(username, displayName, oldStatus, newStatus);
-  const color = STATUS_COLORS[newStatus] ?? STATUS_COLORS.offline;
-  const robloxProfileUrl = `https://www.roblox.com/users/${userId}/profile`;
-  const avatarUrl = `https://thumbs.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=420x420&format=Png`;
+  const name          = displayName || username;
+  const profileUrl    = `https://www.roblox.com/users/${userId}/profile`;
+  const avatarUrl     = `https://thumbs.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=420x420&format=Png`;
+  const color         = STATUS_COLORS[newStatus] ?? STATUS_COLORS.offline;
+  const newLabel      = STATUS_LABEL[newStatus] ?? newStatus;
+  const oldLabel      = oldStatus ? STATUS_LABEL[oldStatus] ?? oldStatus : '—';
+  const newIndicator  = STATUS_INDICATOR[newStatus] ?? '⚫';
+  const oldIndicator  = oldStatus ? STATUS_INDICATOR[oldStatus] ?? '⚫' : '—';
 
-  // Buat list field
+  // Susun deskripsi singkat
+  const fromStr = oldStatus ? `${oldIndicator} ${oldLabel}` : '—';
+  const toStr   = `${newIndicator} ${newLabel}`;
+
   const fields = [
     {
-      name: '👤 Username',
-      value: `[\`${username}\`](${robloxProfileUrl})`,
+      name: 'Pengguna',
+      value: `[${name}](${profileUrl})\n\`${username}\``,
       inline: true
     },
     {
-      name: `${STATUS_EMOJI[newStatus]} Status Sekarang`,
-      value: `**${STATUS_LABEL[newStatus]}**`,
+      name: 'Status',
+      value: `${fromStr}  →  **${toStr}**`,
       inline: true
     }
   ];
 
-  // Tambah field nama game jika sedang bermain
+  // Tambahkan game jika sedang bermain
   if (newStatus === 'in_game' && gameName) {
     fields.push({
-      name: '🕹️ Sedang Bermain',
+      name: 'Sedang Bermain',
       value: gameName,
       inline: false
     });
   }
 
-  // Tambah field status sebelumnya
-  fields.push({
-    name: '🔄 Perubahan Status',
-    value: `${STATUS_EMOJI[oldStatus]} ${STATUS_LABEL[oldStatus]}  →  ${STATUS_EMOJI[newStatus]} ${STATUS_LABEL[newStatus]}`,
-    inline: false
-  });
-
-  // Tambah field waktu
-  fields.push({
-    name: '🕐 Waktu',
-    value: getWIBTimeString(),
-    inline: false
-  });
-
   const embed = {
-    title,
-    description,
     color,
-    url: robloxProfileUrl,
-    thumbnail: {
-      url: avatarUrl
+    author: {
+      name: `${name} — Perubahan Status`,
+      url: profileUrl,
+      icon_url: avatarUrl
     },
     fields,
     footer: {
-      text: 'Roblox Status Watcher · Monitor Otomatis',
-      icon_url: 'https://images.rbxcdn.com/3b3770e11349f4553c36140adcb0487e.png'
+      text: `Roblox Status Watcher  •  ${getWIBTimeString()}`
     },
-    timestamp: new Date().toISOString()
+    thumbnail: { url: avatarUrl }
   };
 
   const payload = {
@@ -168,7 +128,7 @@ export async function sendStatusNotification(username, oldStatus, newStatus, dis
       return false;
     }
 
-    console.log(`[Discord] Notifikasi terkirim: ${username} → ${newStatus}`);
+    console.log(`[Discord] Notifikasi terkirim: ${username} ${fromStr} → ${toStr}`);
     return true;
   } catch (error) {
     console.error('[Discord] Error saat mengirim notifikasi:', error.message);
@@ -182,11 +142,11 @@ export async function sendStatusNotification(username, oldStatus, newStatus, dis
  */
 export async function sendTestNotification() {
   return sendStatusNotification(
-    'RobloxDev',
-    'offline',
+    'Builderman',
+    'online',
     'in_game',
-    'Roblox Developer',
-    1,
+    'Builderman',
+    156,
     'Adopt Me!'
   );
 }

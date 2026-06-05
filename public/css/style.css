@@ -258,47 +258,68 @@ body {
   background: var(--surface-2);
 }
 
-/* Status dot indicator */
-.status-dot {
-  width: 36px;
-  height: 36px;
+/* User avatar with status badge */
+.user-avatar-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-2);
+}
+
+.user-avatar-fallback {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-2);
 }
 
-.status-dot-inner {
-  width: 10px;
-  height: 10px;
+/* Status badge on avatar */
+.user-status-badge {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
   background: var(--text-3);
 }
 
-.status-dot.online .status-dot-inner { background: var(--green); }
-.status-dot.online::after {
+.user-status-badge.online  { background: var(--green); }
+.user-status-badge.in_game { background: var(--cyan); }
+.user-status-badge.studio  { background: var(--orange); }
+.user-status-badge.offline { background: var(--text-3); }
+
+/* Pulse animation for online/in_game badge */
+.user-status-badge.online::after,
+.user-status-badge.in_game::after {
   content: '';
   position: absolute;
-  inset: 8px;
-  background: var(--green);
-  opacity: 0.2;
+  inset: -3px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.35;
   animation: pulse 2s ease infinite;
 }
-
-.status-dot.in_game .status-dot-inner { background: var(--cyan); }
-.status-dot.in_game::after {
-  content: '';
-  position: absolute;
-  inset: 8px;
-  background: var(--cyan);
-  opacity: 0.2;
-  animation: pulse 2s ease infinite;
-}
-
-.status-dot.studio .status-dot-inner { background: var(--orange); }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.2; }
+  0%, 100% { transform: scale(1); opacity: 0.35; }
   50% { transform: scale(1.8); opacity: 0; }
 }
 
@@ -419,6 +440,16 @@ body {
 
 .btn-danger:active {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.btn-warning:active {
+  background: rgba(245, 158, 11, 0.2);
 }
 
 .btn-sm {

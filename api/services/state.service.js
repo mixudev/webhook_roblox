@@ -38,8 +38,9 @@ function writeLocalStore(store) {
 
 /**
  * Gets the last known status of a Roblox user.
+ * Returns null if user has never been seen before (first run).
  * @param {string} username - Roblox username.
- * @returns {Promise<string>} Last known status (defaulting to 'offline' if not found).
+ * @returns {Promise<string|null>} Last known status, or null if never seen.
  */
 export async function getLastStatus(username) {
   const key = `roblox:status:${username.toLowerCase()}`;
@@ -47,14 +48,15 @@ export async function getLastStatus(username) {
   if (isKvConfigured) {
     try {
       const status = await kv.get(key);
-      return status || 'offline';
+      return status ?? null;
     } catch (error) {
       console.warn('Vercel KV get error, falling back to local storage:', error.message);
     }
   }
 
   const store = readLocalStore();
-  return store[key] || 'offline';
+  const val = store[key];
+  return val !== undefined ? val : null;
 }
 
 /**
@@ -247,5 +249,62 @@ export async function clearHistoryLogs() {
   const store = readLocalStore();
   store[key] = [];
   writeLocalStore(store);
+}
+
+/**
+ * Clears cached status for a list of usernames (or all if no list provided).
+ * This forces the next check to re-detect and send notifications.
+ * @param {string[]} [usernames] - Usernames to reset. If omitted, clears all status keys.
+ * @returns {Promise<number>} Number of entries cleared.
+ */
+export async function clearAllStatuses(usernames) {
+  let cleared = 0;
+
+  if (isKvConfigured) {
+    try {
+      if (usernames && usernames.length > 0) {
+        for (const username of usernames) {
+          await kv.del(`roblox:status:${username.toLowerCase()}`);
+          cleared++;
+        }
+      } else {
+        // Scan and delete all roblox:status:* keys
+        let cursor = 0;
+        do {
+          const [nextCursor, keys] = await kv.scan(cursor, { match: 'roblox:status:*', count: 100 });
+          cursor = nextCursor;
+          for (const key of keys) {
+            await kv.del(key);
+            cleared++;
+          }
+        } while (cursor !== 0);
+      }
+      return cleared;
+    } catch (error) {
+      console.warn('Vercel KV error clearing statuses, using local:', error.message);
+    }
+  }
+
+  // Local fallback
+  const store = readLocalStore();
+  if (usernames && usernames.length > 0) {
+    for (const username of usernames) {
+      const key = `roblox:status:${username.toLowerCase()}`;
+      if (key in store) {
+        delete store[key];
+        cleared++;
+      }
+    }
+  } else {
+    // Delete all roblox:status:* keys
+    for (const key of Object.keys(store)) {
+      if (key.startsWith('roblox:status:')) {
+        delete store[key];
+        cleared++;
+      }
+    }
+  }
+  writeLocalStore(store);
+  return cleared;
 }
 
