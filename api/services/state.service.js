@@ -1,9 +1,18 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import fs from 'fs';
 import path from 'path';
 
-// Check if Vercel KV is configured in environment
-const isKvConfigured = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
+// Check if Upstash Redis is configured in environment
+// Vercel Marketplace (Upstash) provides: UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
+const isRedisConfigured = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+
+let redis = null;
+if (isRedisConfigured) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN
+  });
+}
 
 // Local fallback store path
 const LOCAL_STORE_PATH = path.join(process.cwd(), '.local-kv.json');
@@ -26,7 +35,7 @@ function readLocalStore() {
 
 /**
  * Writes to the local fallback store.
- * @param {Record<string, any>} store 
+ * @param {Record<string, any>} store
  */
 function writeLocalStore(store) {
   try {
@@ -45,12 +54,12 @@ function writeLocalStore(store) {
 export async function getLastStatus(username) {
   const key = `roblox:status:${username.toLowerCase()}`;
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      const status = await kv.get(key);
+      const status = await redis.get(key);
       return status ?? null;
     } catch (error) {
-      console.warn('Vercel KV get error, falling back to local storage:', error.message);
+      console.warn('[State] Redis get error, falling back to local:', error.message);
     }
   }
 
@@ -62,18 +71,18 @@ export async function getLastStatus(username) {
 /**
  * Sets the last known status of a Roblox user.
  * @param {string} username - Roblox username.
- * @param {string} status - Current presence status ('offline' | 'online' | 'in_game' | 'studio').
+ * @param {string} status - Current presence status.
  * @returns {Promise<void>}
  */
 export async function setLastStatus(username, status) {
   const key = `roblox:status:${username.toLowerCase()}`;
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      await kv.set(key, status);
+      await redis.set(key, status);
       return;
     } catch (error) {
-      console.warn('Vercel KV set error, falling back to local storage:', error.message);
+      console.warn('[State] Redis set error, falling back to local:', error.message);
     }
   }
 
@@ -90,11 +99,11 @@ export async function getMonitoredUsers() {
   const key = 'roblox:monitored_users';
   let usersList = null;
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      usersList = await kv.get(key);
+      usersList = await redis.get(key);
     } catch (error) {
-      console.warn('Vercel KV error fetching user list, falling back to local:', error.message);
+      console.warn('[State] Redis error fetching user list, falling back to local:', error.message);
     }
   } else {
     const store = readLocalStore();
@@ -125,19 +134,19 @@ export async function addMonitoredUser(username) {
   if (!cleanName) return await getMonitoredUsers();
 
   const currentList = await getMonitoredUsers();
-  
+
   // Prevent duplicates (case-insensitive check)
   const exists = currentList.some(name => name.toLowerCase() === cleanName.toLowerCase());
   if (exists) return currentList;
 
   const newList = [...currentList, cleanName];
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      await kv.set(key, newList);
+      await redis.set(key, newList);
       return newList;
     } catch (error) {
-      console.warn('Vercel KV error saving user list, using local:', error.message);
+      console.warn('[State] Redis error saving user list, using local:', error.message);
     }
   }
 
@@ -159,12 +168,12 @@ export async function removeMonitoredUser(username) {
   const currentList = await getMonitoredUsers();
   const newList = currentList.filter(name => name.toLowerCase() !== cleanName);
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      await kv.set(key, newList);
+      await redis.set(key, newList);
       return newList;
     } catch (error) {
-      console.warn('Vercel KV error removing user, using local:', error.message);
+      console.warn('[State] Redis error removing user, using local:', error.message);
     }
   }
 
@@ -182,11 +191,11 @@ export async function getHistoryLogs() {
   const key = 'roblox:history_logs';
   let logs = null;
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      logs = await kv.get(key);
+      logs = await redis.get(key);
     } catch (error) {
-      console.warn('Vercel KV error fetching history logs, using local:', error.message);
+      console.warn('[State] Redis error fetching history logs, using local:', error.message);
     }
   } else {
     const store = readLocalStore();
@@ -199,14 +208,13 @@ export async function getHistoryLogs() {
 /**
  * Appends a new presence change log entry to the history.
  * Keeps max 50 entries.
- * @param {Object} entry 
+ * @param {Object} entry
  * @returns {Promise<void>}
  */
 export async function addHistoryEntry(entry) {
   const key = 'roblox:history_logs';
   const currentLogs = await getHistoryLogs();
-  
-  // Prepend new entry
+
   const newLogs = [
     {
       id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
@@ -214,14 +222,14 @@ export async function addHistoryEntry(entry) {
       ...entry
     },
     ...currentLogs
-  ].slice(0, 50); // limit to 50 logs
+  ].slice(0, 50);
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      await kv.set(key, newLogs);
+      await redis.set(key, newLogs);
       return;
     } catch (error) {
-      console.warn('Vercel KV error adding history, using local:', error.message);
+      console.warn('[State] Redis error adding history, using local:', error.message);
     }
   }
 
@@ -237,12 +245,12 @@ export async function addHistoryEntry(entry) {
 export async function clearHistoryLogs() {
   const key = 'roblox:history_logs';
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
-      await kv.set(key, []);
+      await redis.set(key, []);
       return;
     } catch (error) {
-      console.warn('Vercel KV error clearing history, using local:', error.message);
+      console.warn('[State] Redis error clearing history, using local:', error.message);
     }
   }
 
@@ -253,35 +261,35 @@ export async function clearHistoryLogs() {
 
 /**
  * Clears cached status for a list of usernames (or all if no list provided).
- * This forces the next check to re-detect and send notifications.
- * @param {string[]} [usernames] - Usernames to reset. If omitted, clears all status keys.
+ * Forces the next check to re-detect and send notifications.
+ * @param {string[]} [usernames]
  * @returns {Promise<number>} Number of entries cleared.
  */
 export async function clearAllStatuses(usernames) {
   let cleared = 0;
 
-  if (isKvConfigured) {
+  if (redis) {
     try {
       if (usernames && usernames.length > 0) {
         for (const username of usernames) {
-          await kv.del(`roblox:status:${username.toLowerCase()}`);
+          await redis.del(`roblox:status:${username.toLowerCase()}`);
           cleared++;
         }
       } else {
         // Scan and delete all roblox:status:* keys
         let cursor = 0;
         do {
-          const [nextCursor, keys] = await kv.scan(cursor, { match: 'roblox:status:*', count: 100 });
+          const [nextCursor, keys] = await redis.scan(cursor, { match: 'roblox:status:*', count: 100 });
           cursor = nextCursor;
           for (const key of keys) {
-            await kv.del(key);
+            await redis.del(key);
             cleared++;
           }
         } while (cursor !== 0);
       }
       return cleared;
     } catch (error) {
-      console.warn('Vercel KV error clearing statuses, using local:', error.message);
+      console.warn('[State] Redis error clearing statuses, using local:', error.message);
     }
   }
 
@@ -296,7 +304,6 @@ export async function clearAllStatuses(usernames) {
       }
     }
   } else {
-    // Delete all roblox:status:* keys
     for (const key of Object.keys(store)) {
       if (key.startsWith('roblox:status:')) {
         delete store[key];
@@ -307,4 +314,3 @@ export async function clearAllStatuses(usernames) {
   writeLocalStore(store);
   return cleared;
 }
-
