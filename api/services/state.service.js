@@ -2,15 +2,17 @@ import { Redis } from '@upstash/redis';
 import fs from 'fs';
 import path from 'path';
 
-// Check if Upstash Redis is configured in environment
-// Vercel Marketplace (Upstash) provides: UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
-const isRedisConfigured = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+// Support both Upstash direct env vars and Vercel KV env vars (KV_REST_API_*)
+const redisUrl   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+const isRedisConfigured = !!(redisUrl && redisToken);
 
 let redis = null;
 if (isRedisConfigured) {
   redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN
+    url: redisUrl,
+    token: redisToken
   });
 }
 

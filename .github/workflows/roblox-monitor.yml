@@ -23,7 +23,7 @@ jobs:
         run: |
           echo "⏱ Running status check at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
-          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+          HTTP_STATUS=$(curl -s -L -o /tmp/response.txt -w "%{http_code}" \
             -X GET \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
