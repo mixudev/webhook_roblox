@@ -379,57 +379,101 @@ document.addEventListener('DOMContentLoaded', () => {
   // ============================================
   // HEALTH - LOAD DIAGNOSTICS
   // ============================================
-  const healthList = document.getElementById('health-list');
-  const healthOverall = document.getElementById('health-overall');
-  const healthOverallBadge = document.getElementById('health-overall-badge');
-  const healthRefreshBtn = document.getElementById('health-refresh-btn');
+  const healthSkeleton      = document.getElementById('health-skeleton');
+  const healthChecksGrid    = document.getElementById('health-checks-grid');
+  const healthBanner        = document.getElementById('health-banner');
+  const healthBannerIcon    = document.getElementById('health-banner-icon');
+  const healthBannerTitle   = document.getElementById('health-banner-title');
+  const healthBannerSub     = document.getElementById('health-banner-sub');
+  const healthRefreshBtn    = document.getElementById('health-refresh-btn');
+  const healthRefreshBtn2   = document.getElementById('health-refresh-btn-2');
+  const healthDebugCard     = document.getElementById('health-debug-card');
+  const healthDebugToggle   = document.getElementById('health-debug-toggle');
+  const healthDebugBody     = document.getElementById('health-debug-body');
+  const healthDebugPre      = document.getElementById('health-debug-pre');
+  const healthDebugChevron  = document.getElementById('health-debug-chevron');
   const healthLastActivityCard = document.getElementById('health-last-activity-card');
-  const healthLastActivity = document.getElementById('health-last-activity');
+  const healthLastActivity  = document.getElementById('health-last-activity');
 
-  const STATUS_CONFIG = {
-    ok:   { icon: '✓', label: 'OK', cls: 'health-ok' },
-    warn: { icon: '!', label: 'Warning', cls: 'health-warn' },
-    error:{ icon: '✕', label: 'Error', cls: 'health-error' },
-    info: { icon: 'i', label: 'Info', cls: 'health-info' }
+  // Icons per check id
+  const CHECK_ICONS = {
+    cron_secret:    `<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    discord_webhook:`<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    upstash_redis:  `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`,
+    monitored_users:`<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    roblox_api:     `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    github_actions: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`
+  };
+
+  const CHECK_BADGE = { ok: 'OK', warn: 'Warning', error: 'Error', info: 'Info' };
+
+  const BANNER_CONFIG = {
+    ok:    { icon: '✓', title: 'Semua sistem berjalan normal', emoji: '🟢' },
+    warn:  { icon: '!', title: 'Ada konfigurasi yang perlu diperhatikan', emoji: '🟡' },
+    error: { icon: '✕', title: 'Ada masalah yang perlu diperbaiki', emoji: '🔴' }
   };
 
   async function loadHealth() {
-    healthList.innerHTML = `<div class="empty-state"><p>Checking...</p></div>`;
-    healthOverall.style.display = 'none';
+    // Show skeleton, hide rest
+    healthSkeleton.style.display = 'flex';
+    healthSkeleton.style.flexDirection = 'column';
+    healthSkeleton.style.gap = '0.5rem';
+    healthChecksGrid.style.display = 'none';
+    healthBanner.style.display = 'none';
+    healthDebugCard.style.display = 'none';
     healthLastActivityCard.style.display = 'none';
+    if (healthRefreshBtn) healthRefreshBtn.classList.add('spinning');
 
     try {
       const res = await fetch('/api/health');
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
 
-      // Overall status banner
+      // Banner
       const overall = data.overall || 'ok';
-      const oc = STATUS_CONFIG[overall] || STATUS_CONFIG.info;
-      healthOverallBadge.className = `health-overall-badge ${oc.cls}`;
-      healthOverallBadge.textContent = overall === 'ok'
-        ? '✓ Semua sistem berjalan normal'
-        : overall === 'warn'
-          ? '! Ada konfigurasi yang perlu diperhatikan'
-          : '✕ Ada konfigurasi yang belum lengkap';
-      healthOverall.style.display = 'block';
-
-      // Check items
-      healthList.innerHTML = '';
-      (data.checks || []).forEach(check => {
-        const cfg = STATUS_CONFIG[check.status] || STATUS_CONFIG.info;
-        const div = document.createElement('div');
-        div.className = 'health-item';
-        div.innerHTML = `
-          <div class="health-icon ${cfg.cls}">${cfg.icon}</div>
-          <div class="health-info">
-            <div class="health-label">${check.label}</div>
-            <div class="health-msg">${check.message}</div>
-          </div>
-          <div class="health-badge ${cfg.cls}">${cfg.label}</div>
-        `;
-        healthList.appendChild(div);
+      const bc = BANNER_CONFIG[overall] || BANNER_CONFIG.ok;
+      healthBanner.className = `health-banner ${overall}`;
+      healthBannerIcon.textContent = bc.icon;
+      healthBannerTitle.textContent = bc.title;
+      healthBannerSub.textContent = new Date(data.timestamp).toLocaleString('id-ID', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
       });
+      healthBanner.style.display = 'flex';
+
+      // Hide skeleton, build cards
+      healthSkeleton.style.display = 'none';
+      healthChecksGrid.innerHTML = '';
+      healthChecksGrid.className = 'health-checks-grid';
+
+      (data.checks || []).forEach(check => {
+        const card = document.createElement('div');
+        card.className = `health-check-card ${check.status}`;
+
+        const icon = CHECK_ICONS[check.id] || CHECK_ICONS.roblox_api;
+        const badge = CHECK_BADGE[check.status] || check.status;
+        const ping = check.ping != null ? `<div class="health-check-ping">⚡ ${check.ping}ms latency</div>` : '';
+
+        card.innerHTML = `
+          <div class="health-check-icon">${icon}</div>
+          <div class="health-check-body">
+            <div class="health-check-label">${check.label}</div>
+            <div class="health-check-msg">${check.message}</div>
+            ${ping}
+          </div>
+          <div class="health-check-badge">${badge}</div>
+        `;
+        healthChecksGrid.appendChild(card);
+      });
+
+      healthChecksGrid.style.display = 'flex';
+      healthChecksGrid.style.flexDirection = 'column';
+
+      // Debug panel
+      if (data._debug) {
+        healthDebugPre.textContent = JSON.stringify(data._debug, null, 2);
+        healthDebugCard.style.display = 'block';
+      }
 
       // Last activity
       if (data.lastActivity) {
@@ -437,25 +481,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const timeStr = la.timestamp
           ? new Date(la.timestamp).toLocaleString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
           : '—';
+        const STATUS_LABEL_HEALTH = { offline: 'Offline', online: 'Online', in_game: 'In Game', studio: 'Studio' };
         healthLastActivity.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span><strong>${la.displayName || la.username}</strong> @${la.username}</span>
-            <span style="color: var(--text-3); font-size: 0.78rem;">${timeStr}</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.25rem;">
+            <span style="font-weight:700; color:var(--text-1);">${la.displayName || la.username}</span>
+            <span style="color: var(--text-3); font-size: 0.75rem; font-family:'Courier New',monospace;">${timeStr}</span>
           </div>
-          <div style="margin-top: 0.4rem; color: var(--text-3); font-size: 0.8rem;">
-            ${la.old_status} → ${la.new_status}
-            ${la.webhook_sent ? '<span style="color:var(--green); margin-left:0.5rem;">✓ Notified</span>' : '<span style="color:var(--red); margin-left:0.5rem;">✕ Not sent</span>'}
+          <div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+            <span class="status-label ${la.old_status}">${STATUS_LABEL_HEALTH[la.old_status] || la.old_status}</span>
+            <span style="color:var(--text-3); font-size:0.75rem;">→</span>
+            <span class="status-label ${la.new_status}">${STATUS_LABEL_HEALTH[la.new_status] || la.new_status}</span>
+            ${la.webhook_sent
+              ? '<span style="margin-left:auto; font-size:0.65rem; font-weight:700; background:var(--green-dim); color:var(--green); border:1px solid rgba(16,185,129,0.3); padding:2px 7px; text-transform:uppercase; letter-spacing:0.5px;">✓ Notified</span>'
+              : '<span style="margin-left:auto; font-size:0.65rem; font-weight:700; background:var(--red-dim); color:var(--red); border:1px solid rgba(239,68,68,0.3); padding:2px 7px; text-transform:uppercase; letter-spacing:0.5px;">✕ Not sent</span>'}
           </div>
         `;
         healthLastActivityCard.style.display = 'block';
       }
 
+      document.getElementById('health-refresh-fallback').style.display = 'none';
+
     } catch (err) {
-      healthList.innerHTML = `<div class="empty-state"><p>Gagal memuat diagnostik: ${err.message}</p></div>`;
+      healthSkeleton.style.display = 'none';
+      healthChecksGrid.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Gagal memuat diagnostik:<br>${err.message}</p>
+        </div>`;
+      healthChecksGrid.style.display = 'block';
+      showError(`Health check failed: ${err.message}`);
+    } finally {
+      if (healthRefreshBtn) healthRefreshBtn.classList.remove('spinning');
     }
   }
 
-  healthRefreshBtn.addEventListener('click', loadHealth);
+  healthRefreshBtn?.addEventListener('click', loadHealth);
+  healthRefreshBtn2?.addEventListener('click', loadHealth);
+
+  // Debug toggle accordion
+  healthDebugToggle?.addEventListener('click', () => {
+    const open = healthDebugBody.style.display !== 'none';
+    healthDebugBody.style.display = open ? 'none' : 'block';
+    healthDebugChevron.style.transform = open ? '' : 'rotate(180deg)';
+  });
 
   // ============================================
   // INITIAL LOAD
